@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ENUMS
+
+
+// MODELS
+
+model User {
+  id        Int      @id @default(autoincrement())
+
+  email     String   @unique
+  password  String
+
+  // Contextual identity
+  username  String   @unique
+
+  createdAt DateTime @default(now())
+
+  // Relationships
+  createdExams Exam[]       @relation("ExamOwner")
+  attempts     ExamAttempt[]
+  questions Question[]
+  profile      Profile?
+}
+
+model Exam {
+  id               Int      @id @default(autoincrement())
+
+  // Ownership
+  ownerId          Int
+  owner            User     @relation("ExamOwner", fields: [ownerId], references: [id])
+
+  // Core exam info
+  title            String
+  instructions     String
+
+  // Auto-publish
+  autoPublish      Boolean  @default(false)
+  isPublished      Boolean  @default(false)
+  resultPublished  Boolean  @default(false)
+
+  // Scoring (snapshot values)
+  markPerQuestion  Float    @default(1)
+  totalQuestions   Int
+  totalMarks       Float
+
+  // Exam behavior
+  durationMinutes  Int
+  shuffleQuestions Boolean  @default(false)
+  shuffleOptions   Boolean  @default(false)
+
+  // Timing
+  startDate        DateTime?
+  endDate          DateTime?
+
+  // Public join link
+  publicId         String   @unique @default(uuid())
+
+  // Timestamps
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  questions        QuestionTest[]
+  attempts         ExamAttempt[]
+}
+
+model ExamAttempt {
+  id        Int @id @default(autoincrement())
+
+  userId    Int
+  examId    Int
+
+  user      User @relation(fields: [userId], references: [id])
+  exam      Exam @relation(fields: [examId], references: [id])
+
+  // Identity snapshot at the time of attempt
+  displayName String
+
+  startedAt   DateTime @default(now())
+  submittedAt DateTime?
+  isSubmitted Boolean  @default(false)
+
+  score       Float    @default(0)
+  answers     AttemptAnswer[]
+
+
+  @@unique([userId, examId])
+}
+
+model Profile {
+  id        Int     @id @default(autoincrement())
+
+  // Relation to User
+  userId    Int     @unique
+  user      User    @relation(fields: [userId], references: [id])
+
+  // Personal info
+  firstname String? 
+  lastname  String? 
+  username  String? @default("")
+  email     String  
+  phonenumber String? @default("")
+  country   String? @default("")
+  state     String? @default("")
+  address   String? @default("")
+
+  // Meta
+  profileCreated Int     @default(0)
+  deletedAt      DateTime?
+
+}
+
+model Question {
+  id                Int      @id @default(autoincrement())
+
+  creatorId         Int
+  creator           User     @relation(fields: [creatorId], references: [id])
+
+  question          String
+  instruction       String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  questionTests     QuestionTest[]
+  answers           Answer[]
+}
+
+model QuestionTest {
+  id           Int      @id @default(autoincrement())
+
+  examId       Int
+  exam         Exam     @relation(fields: [examId], references: [id])
+
+  questionId   Int
+  question     Question @relation(fields: [questionId], references: [id])
+
+  mark         Float    @default(1)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  attemptAnswers AttemptAnswer[]
+
+  @@unique([examId, questionId])
+}
+
+model Answer {
+  id         Int      @id @default(autoincrement())
+
+  content    String
+  isCorrect  Boolean
+
+  questionId Int
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model AttemptAnswer {
+  id             Int      @id @default(autoincrement())
+
+  attemptId      Int
+  attempt        ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  questionTestId Int
+  questionTest   QuestionTest @relation(fields: [questionTestId], references: [id])
+
+  // What the student selected
+  selectedAnswerId Int?        // for MCQ
+  textAnswer       String?     // for text questions
+
+  // Grading
+  isCorrect      Boolean  @default(false)
+  score          Float    @default(0)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([attemptId, questionTestId])
+}
+
