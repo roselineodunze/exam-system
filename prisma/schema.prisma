@@ -47,8 +47,6 @@ model Exam {
   resultPublished  Boolean  @default(false)
 
   // Scoring (snapshot values)
-  markPerQuestion  Float    @default(1)
-  totalQuestions   Int
   totalMarks       Float
 
   // Exam behavior
@@ -84,7 +82,7 @@ model ExamAttempt {
   // Identity snapshot at the time of attempt
   displayName String
 
-  startedAt   DateTime @default(now())
+  startedAt   DateTime? @default(now())
   submittedAt DateTime?
   isSubmitted Boolean  @default(false)
 
@@ -158,7 +156,7 @@ model Answer {
   id         Int      @id @default(autoincrement())
 
   content    String
-  isCorrect  Boolean
+  isCorrect  Boolean? @default(false)
 
   questionId Int
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
