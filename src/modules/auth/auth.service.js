@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import prisma from "../../../prisma/client.js";
+import { signJWTtoken } from "../../../utils/jwt.js";
 
 export async function signup({ email, username, password }) {
   const existing = await prisma.user.findUnique({
@@ -28,18 +29,25 @@ export async function signup({ email, username, password }) {
         username: user.username,
       },
     });
-    console.log("user created")
+    console.log("user created");
     return { user, profile };
   });
 
+  const token = signJWTtoken({ userId: result.user.id, email: result.user.email, username: result.user.username });
+
   return {
-    id: result.user.id,
-    email: result.user.email,
-    username: result.user.username,
+    user: {
+      id: result.user.id,
+      email: result.user.email,
+      username: result.user.username,
+    },
+    token,
   };
 }
 
 export async function login({ email, password }) {
+  console.log(email)
+  console.log(password)
   const user = await prisma.user.findUnique({
     where: { email },
   });
@@ -50,13 +58,18 @@ export async function login({ email, password }) {
 
   const valid = await bcrypt.compare(password, user.password);
 
+  const token = signJWTtoken({ userId: user.id, email: user.email });
+
   if (!valid) {
     throw new Error("Invalid credentials");
   }
 
   return {
-    id: user.id,
-    email: user.email,
-    username: user.username,
+    user: {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+    },
+    token,
   };
 }

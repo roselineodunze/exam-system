@@ -25,6 +25,7 @@ model User {
 
   // Relationships
   createdExams Exam[]       @relation("ExamOwner")
+  enrolledExams ExamEnrollment[]
   attempts     ExamAttempt[]
   questions Question[]
   profile      Profile?
@@ -47,7 +48,7 @@ model Exam {
   resultPublished  Boolean  @default(false)
 
   // Scoring (snapshot values)
-  totalMarks       Float
+  totalMark       Float?
 
   // Exam behavior
   durationMinutes  Int
@@ -68,6 +69,7 @@ model Exam {
   // Relations
   questions        QuestionTest[]
   attempts         ExamAttempt[]
+  enrolls          ExamEnrollment[]
 }
 
 model ExamAttempt {
@@ -91,6 +93,20 @@ model ExamAttempt {
 
 
   @@unique([userId, examId])
+}
+
+model ExamEnrollment {
+  id        Int      @id @default(autoincrement())
+
+  userId    Int
+  user User @relation(fields: [userId], references: [id])
+
+  examId    Int
+  exam Exam @relation(fields: [examId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, examId]) // Prevent duplicate enrollment
 }
 
 model Profile {
@@ -127,6 +143,8 @@ model Question {
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
 
   // Relations
   questionTests     QuestionTest[]

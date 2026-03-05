@@ -65,7 +65,7 @@ async function main() {
       owner: {
         connect: { id: lecturer.id },
       },
-      totalMarks: 6.0,
+      totalMark: 6.0,
     },
   });
 
