@@ -1,7 +1,7 @@
 import prisma from "../../../prisma/client.js";
 
 export async function addExamQuestion(userId, examId, data) {
-  const { distributeMark, questions } = data;
+  const { questions } = data;
 
   if (!examId || !userId) {
     throw new Error("ExamId and userId are required");
@@ -11,12 +11,11 @@ export async function addExamQuestion(userId, examId, data) {
   }
 
   return prisma.$transaction(async (tx) => {
-
     // 1️⃣ Verify exam ownership
     const exam = await tx.exam.findFirst({
       where: {
         id: examId,
-        creatorId: userId,
+        ownerId: userId,
       },
     });
 
@@ -29,7 +28,7 @@ export async function addExamQuestion(userId, examId, data) {
       where: {
         examId,
         questionId: {
-          in: questions.map(q => q.id),
+          in: questions.map((q) => q.id),
         },
       },
     });
@@ -41,7 +40,7 @@ export async function addExamQuestion(userId, examId, data) {
     let questionData = [];
 
     // 3️⃣ Distribute Marks Equally
-    if (distributeMark) {
+    if (exam.distributeMark) {
       const totalMark = exam.totalMark;
       const count = questions.length;
 
@@ -72,7 +71,6 @@ export async function addExamQuestion(userId, examId, data) {
           mark,
         });
       });
-
     } else {
       // 4️⃣ Manual Marks Validation
 
@@ -80,14 +78,17 @@ export async function addExamQuestion(userId, examId, data) {
         if (typeof q.mark !== "number") {
           throw new Error("Each question must have a mark");
         }
+        if (q.mark <= 0) {
+          throw new Error("Each question must have a mark greater than 0");
+        }
         return sum + q.mark;
       }, 0);
 
-      if (Number(total.toFixed(2)) !== Number(exam.totalMark.toFixed(2))) {
-        throw new Error("Sum of question marks must equal exam totalMark");
+      if (total > exam.totalMark) {
+        throw new Error("Total question marks cannot exceed exam totalMark");
       }
 
-      questionData = questions.map(q => ({
+      questionData = questions.map((q) => ({
         examId,
         questionId: q.id,
         mark: q.mark,
@@ -99,7 +100,17 @@ export async function addExamQuestion(userId, examId, data) {
       data: questionData,
     });
 
-    return { success: true };
+    return {
+      success: true,
+      data: await tx.exam.findFirst({
+        where: {
+          id: examId,
+          ownerId: userId,
+        },
+        include: {
+          questions: true
+        }
+      }),
+    };
   });
 }
-

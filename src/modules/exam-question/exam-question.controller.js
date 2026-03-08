@@ -1,6 +1,7 @@
 import * as examQuestionService from "./exam-question.service.js";
 
 export async function addExamQuestion(req, res) {
+  console.log("adding exam questins")
   try {
     const userId = Number(req.user.id);
     const examId = Number(req.params.id);

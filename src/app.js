@@ -2,6 +2,7 @@ import express from "express";
 import authRoutes from "./modules/auth/auth.routes.js";
 import questionRoutes from "./modules/question/question.routes.js";
 import examRoutes from "./modules/exams/exam.routes.js";
+import examQuestionRoutes from "./modules/exam-question/exam-question.routes.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,6 +12,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/question", questionRoutes);
 app.use("/api/exam", examRoutes);
+app.use("/api/exam-question", examQuestionRoutes)
 
 
 app.get("/", (req, res) => {

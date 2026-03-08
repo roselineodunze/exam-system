@@ -6,7 +6,7 @@ export async function getAllExamsOwned(userId) {
   }
   const exams = await prisma.exam.findMany({
     where: {
-      creatorId: userId,
+      ownerId: userId,
     },
     include: {
       questions: true,
@@ -19,6 +19,25 @@ export async function getAllExamsOwned(userId) {
   });
 
   return exams;
+}
+
+export async function getExamById(examId, userId) {
+  const question = await prisma.exam.findFirst({
+    where: {
+      id: examId,
+      ownerId: userId,
+    },
+    include: {
+      questions: true,
+      attempts: true,
+      enrolls: true,
+    },
+  });
+
+  if (!question) {
+    throw new Error("Question not found or unauthorized");
+  }
+  return question;
 }
 
 export async function getAllExamsEnrolled(userId) {
@@ -53,7 +72,12 @@ export async function createExam(userId, data) {
     shuffleOptions,
     startDate,
     endDate,
+    distributeMark
   } = data;
+
+  if (totalMark <= 0) {
+    throw new Error("Exam total mark must be greater than 0");
+  }
   const createdExam = await prisma.exam.create({
     data: {
       title,
@@ -65,7 +89,9 @@ export async function createExam(userId, data) {
       shuffleOptions,
       startDate,
       endDate,
-      creatorId: userId,
+      distributeMark,
+      isPublished: autoPublish,
+      ownerId: userId,
     },
   });
 
@@ -88,7 +114,7 @@ export async function updateExam({ examId, userId, data }) {
     const existing = await tx.exam.findFirst({
       where: {
         id: examId,
-        creatorId: userId,
+        ownerId: userId,
       },
     });
     if (!existing) {
@@ -113,23 +139,4 @@ export async function updateExam({ examId, userId, data }) {
       where: { id: examId },
     });
   });
-}
-
-export async function getExamById(examId, userId) {
-  const question = await prisma.exam.findFirst({
-    where: {
-      id: examId,
-      creatorId: userId,
-    },
-    include: {
-      questions: true,
-      attempts: true,
-      enrolls: true,
-    },
-  });
-
-  if (!question) {
-    throw new Error("Question not found or unauthorized");
-  }
-  return question;
 }

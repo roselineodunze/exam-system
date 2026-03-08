@@ -49,6 +49,7 @@ model Exam {
 
   // Scoring (snapshot values)
   totalMark       Float?
+  distributeMark Boolean @default(false)
 
   // Exam behavior
   durationMinutes  Int
