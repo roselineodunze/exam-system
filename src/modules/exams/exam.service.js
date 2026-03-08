@@ -98,12 +98,11 @@ export async function createExam(userId, data) {
   return createdExam;
 }
 
-export async function updateExam({ examId, userId, data }) {
+export async function updateExam( examId, userId, data ) {
   const {
     title,
     instructions,
     autoPublish,
-    totalMark,
     durationMinutes,
     shuffleQuestions,
     shuffleOptions,
@@ -126,7 +125,6 @@ export async function updateExam({ examId, userId, data }) {
         title,
         instructions,
         autoPublish,
-        totalMark,
         durationMinutes,
         shuffleQuestions,
         shuffleOptions,
