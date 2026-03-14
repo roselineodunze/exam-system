@@ -6,24 +6,12 @@ export async function addExamQuestion(userId, examId, data) {
   if (!examId || !userId) {
     throw new Error("ExamId and userId are required");
   }
-  if (!questions || questions.length === 0) {
-    throw new Error("At least one question is required");
+
+  if (data.totalMark === undefined || data.totalMark <= 0) {
+    throw new Error("Exam totalMark must be provided and greater than 0");
   }
 
   return prisma.$transaction(async (tx) => {
-    // 1️⃣ Verify exam ownership
-    const exam = await tx.exam.findFirst({
-      where: {
-        id: examId,
-        ownerId: userId,
-      },
-    });
-
-    if (!exam) {
-      throw new Error("Unauthorized or exam not found");
-    }
-
-    // 2️⃣ Prevent duplicates already attached
     const existing = await tx.questionTest.findMany({
       where: {
         examId,
@@ -31,22 +19,45 @@ export async function addExamQuestion(userId, examId, data) {
           in: questions.map((q) => q.id),
         },
       },
+      select: {
+        questionId: true,
+      },
     });
 
-    if (existing.length > 0) {
-      throw new Error("One or more questions already added to this exam");
+    const existingIds = existing.map((q) => q.questionId);
+
+    const newQuestions = questions.filter((q) => !existingIds.includes(q.id));
+
+    if (newQuestions.length > 0) {
+      const questionData = newQuestions.map((q) => ({
+        examId,
+        questionId: q.id,
+        mark: 0,
+      }));
+
+      await tx.questionTest.createMany({
+        data: questionData,
+      });
     }
 
-    let questionData = [];
+    const exam = await tx.exam.findFirst({
+      where: { id: examId, ownerId: userId },
+      include: { questions: true },
+    });
 
-    // 3️⃣ Distribute Marks Equally
-    if (exam.distributeMark) {
-      const totalMark = exam.totalMark;
-      const count = questions.length;
+    if (!exam) throw new Error("Exam not found or unauthorized");
 
-      if (!totalMark || totalMark <= 0) {
-        throw new Error("Exam totalMark must be set before distribution");
-      }
+    const updatedExam = await tx.exam.update({
+      where: { id: examId },
+      data: {
+        totalMark: data.totalMark ?? exam.totalMark,
+        distributeMark: data.distributeMark ?? exam.distributeMark,
+      },
+    });
+
+    if (updatedExam.distributeMark) {
+      const totalMark = updatedExam.totalMark;
+      const count = exam.questions.length;
 
       const rawMark = totalMark / count;
 
@@ -54,8 +65,9 @@ export async function addExamQuestion(userId, examId, data) {
       const roundedMark = Number(rawMark.toFixed(2));
 
       let accumulated = 0;
+      let newQuestionData = []
 
-      questions.forEach((q, index) => {
+      exam.questions.forEach((q, index) => {
         let mark = roundedMark;
 
         // For last question, assign remaining balance
@@ -65,12 +77,27 @@ export async function addExamQuestion(userId, examId, data) {
 
         accumulated += mark;
 
-        questionData.push({
-          examId,
+        newQuestionData.push({
           questionId: q.id,
           mark,
         });
       });
+
+      await Promise.all(
+        newQuestionData.map((q) =>
+          tx.questionTest.update({
+            where: {
+              examId_questionId: {
+                examId,
+                questionId: q.questionId,
+              },
+            },
+            data: {
+              mark: q.mark,
+            },
+          })
+        )
+      );
     } else {
       // 4️⃣ Manual Marks Validation
 
@@ -79,27 +106,31 @@ export async function addExamQuestion(userId, examId, data) {
           throw new Error("Each question must have a mark");
         }
         if (q.mark <= 0) {
-          throw new Error("Each question must have a mark greater than 0");
+          throw new Error("Each question mark must be greater than 0");
         }
         return sum + q.mark;
       }, 0);
 
-      if (total > exam.totalMark) {
+      if (total > updatedExam.totalMark) {
         throw new Error("Total question marks cannot exceed exam totalMark");
       }
 
-      questionData = questions.map((q) => ({
-        examId,
-        questionId: q.id,
-        mark: q.mark,
-      }));
+      await Promise.all(
+        questions.map((q) =>
+          tx.questionTest.update({
+            where: {
+              examId_questionId: {
+                examId,
+                questionId: q.id,
+              },
+            },
+            data: {
+              mark: q.mark,
+            },
+          })
+        )
+      );
     }
-
-    // 5️⃣ Create QuestionTest entries
-    await tx.questionTest.createMany({
-      data: questionData,
-    });
-
     return {
       success: true,
       data: await tx.exam.findFirst({
@@ -108,9 +139,10 @@ export async function addExamQuestion(userId, examId, data) {
           ownerId: userId,
         },
         include: {
-          questions: true
-        }
+          questions: true,
+        },
       }),
     };
   });
 }
+

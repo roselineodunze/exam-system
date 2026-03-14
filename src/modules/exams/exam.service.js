@@ -66,30 +66,23 @@ export async function createExam(userId, data) {
     title,
     instructions,
     autoPublish,
-    totalMark,
     durationMinutes,
     shuffleQuestions,
     shuffleOptions,
     startDate,
     endDate,
-    distributeMark
   } = data;
 
-  if (totalMark <= 0) {
-    throw new Error("Exam total mark must be greater than 0");
-  }
   const createdExam = await prisma.exam.create({
     data: {
       title,
       instructions,
       autoPublish,
-      totalMark,
       durationMinutes,
       shuffleQuestions,
       shuffleOptions,
       startDate,
       endDate,
-      distributeMark,
       isPublished: autoPublish,
       ownerId: userId,
     },
