@@ -2,6 +2,7 @@ import prisma from "../../../prisma/client.js";
 
 // Helper: filter out already added questions
 async function filterNewQuestions(tx, examId, questions) {
+  console.log("filtering new questions")
   const existing = await tx.questionTest.findMany({
     where: {
       examId,
@@ -16,6 +17,8 @@ async function filterNewQuestions(tx, examId, questions) {
 
 // Helper: create new questionTest rows
 async function createQuestionTests(tx, examId, newQuestions) {
+  console.log("filtering new questiontests")
+
   if (newQuestions.length === 0) return;
 
   const data = newQuestions.map((q) => ({
@@ -29,6 +32,8 @@ async function createQuestionTests(tx, examId, newQuestions) {
 
 // Helper: distribute marks evenly
 async function distributeMarks(tx, examId, questions, totalMark) {
+  console.log("distributing marks evenly")
+
   const count = questions.length;
   const rawMark = totalMark / count;
   const roundedMark = Number(rawMark.toFixed(2));
@@ -38,7 +43,7 @@ async function distributeMarks(tx, examId, questions, totalMark) {
     let mark = roundedMark;
     if (index === count - 1) mark = Number((totalMark - accumulated).toFixed(2));
     accumulated += mark;
-    return { questionId: q.id, mark };
+    return { questionId: q.questionId, mark };
   });
 
   await Promise.all(
@@ -53,6 +58,8 @@ async function distributeMarks(tx, examId, questions, totalMark) {
 
 // Helper: validate manual marks
 function validateManualMarks(questions, totalMark) {
+  console.log("validating manual marks")
+
   const total = questions.reduce((sum, q) => {
     if (typeof q.mark !== "number") throw new Error("Each question must have a mark");
     if (q.mark <= 0) throw new Error("Each question mark must be greater than 0");
@@ -64,6 +71,8 @@ function validateManualMarks(questions, totalMark) {
 
 // Helper: update manual marks
 async function updateManualMarks(tx, examId, questions) {
+  console.log("updating manual marks")
+
   await Promise.all(
     questions.map((q) =>
       tx.questionTest.update({
@@ -76,6 +85,8 @@ async function updateManualMarks(tx, examId, questions) {
 
 // Main service
 export async function addExamQuestion(userId, examId, data) {
+  console.log("adding exam questions")
+
   const { questions } = data;
 
   if (!examId || !userId) throw new Error("ExamId and userId are required");
