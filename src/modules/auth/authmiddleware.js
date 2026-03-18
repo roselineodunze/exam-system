@@ -13,6 +13,7 @@ export function authenticate(req, res, next) {
 
     req.user = {
       id: decoded.userId,
+      username: decoded.username
     };
 
     next();

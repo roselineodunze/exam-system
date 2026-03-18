@@ -4,6 +4,7 @@ import questionRoutes from "./modules/question/question.routes.js";
 import examRoutes from "./modules/exams/exam.routes.js";
 import examQuestionRoutes from "./modules/exam-question/exam-question.routes.js";
 import examEnrollmentRoutes from "./modules/exam-enrollment/exam-enrollment.routes.js";
+import examAttemptRoutes from "./modules/exam-attempt/exam-attempt.routes.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,6 +16,7 @@ app.use("/api/question", questionRoutes);
 app.use("/api/exam", examRoutes);
 app.use("/api/exam-question", examQuestionRoutes)
 app.use("/api/exam-enrollment", examEnrollmentRoutes)
+app.use("/api/exam-attempt", examAttemptRoutes)
 
 
 app.get("/", (req, res) => {

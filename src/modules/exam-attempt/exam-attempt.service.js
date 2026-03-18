@@ -1,12 +1,19 @@
 import prisma from "../../../prisma/client.js";
 
 export async function startExam(userId, username, examId) {
+  console.log(username);
   if (!examId || !userId) throw new Error("ExamId and userId are required");
 
   return prisma.$transaction(async (tx) => {
     const exam = await tx.exam.findFirst({
       where: { id: examId },
     });
+
+    const enrollment = await tx.examEnrollment.findUnique({
+      where: { userId_examId: { userId, examId } },
+    });
+    if (!enrollment) throw new Error("User is not enrolled in this exam");
+
     if (!exam) throw new Error("Exam not found");
 
     if (new Date() < exam.startDate) {
@@ -15,11 +22,6 @@ export async function startExam(userId, username, examId) {
     if (new Date() >= exam.endDate) {
       throw new Error("Exam has ended");
     }
-
-    const enrollment = await tx.examEnrollment.findUnique({
-      where: { userId_examId: { userId, examId } },
-    });
-    if (!enrollment) throw new Error("User is not enrolled in this exam");
 
     const existingAttempt = await tx.examAttempt.findFirst({
       where: { userId, examId },
@@ -50,6 +52,10 @@ export async function submitExam(userId, examId, attemptId, data) {
     });
 
     if (!attempt) throw new Error("Attempt not found");
+
+    if (attempt.isSubmitted) {
+      throw new Error("Exam already submitted");
+    }
 
     for (const a of attempts) {
       const questionTest = await tx.questionTest.findUnique({
@@ -85,7 +91,7 @@ export async function submitExam(userId, examId, attemptId, data) {
         questionTestId: a.questionTestId,
         selectedAnswerId: a.selectedAnswerId,
         isCorrect,
-        score: isCorrect ? questionTest.score : 0,
+        score: isCorrect ? questionTest.mark : 0,
       });
     }
 
@@ -97,8 +103,36 @@ export async function submitExam(userId, examId, attemptId, data) {
 
     const updatedAttempt = await tx.examAttempt.update({
       where: { id: attemptId },
-      data: { score: totalScore },
+      data: { score: totalScore, isSubmitted: true, submittedAt: new Date() },
     });
-    return updatedAttempt
+    return updatedAttempt;
   });
+}
+
+export async function getAllExamAttempts(userId, examId) {
+  if (!examId || !userId) throw new Error("ExamId and userId are required");
+
+  return prisma.$transaction(async (tx) => {
+    const exam = await tx.exam.findFirst({
+      where: { id: examId, ownerId: userId },
+    });
+
+    if (!exam) throw new Error("Exam not found or unauthorized");
+
+    const attempts = await tx.examAttempt.findMany({
+      where: { examId },
+    });
+
+    return attempts;
+  });
+}
+
+export async function getAllUserAttempts(userId) {
+  if (!userId) throw new Error("UserId are required");
+
+  const attempts = await prisma.examAttempt.findMany({
+    where: { userId },
+  });
+
+  return attempts;
 }
